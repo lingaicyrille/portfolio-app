@@ -33,6 +33,7 @@ jobs:
          key: ${{ secrets.PRIVATE_KEY }}
          script: |
           docker rm -f portfolio-app || echo "Container not found, skipping removal."
+          docker rmi -f ${{ secrets.DOCKER_USERNAME }}/portfolio-app:${{ github.run_number }} || echo "Image not found, skipping removal."
           docker run -d -p 8080:80 --name portfolio-app ${{ secrets.DOCKER_USERNAME }}/portfolio-app:${{ github.run_number }}
     
  
