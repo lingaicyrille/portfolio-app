@@ -25,7 +25,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: SSH to server and run container
+      - name: SSH to server and run the container
         uses: appleboy/ssh-action@v1
         with:
          host: ${{ secrets.HOST }}
