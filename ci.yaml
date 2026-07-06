@@ -1,0 +1,56 @@
+name: My first pipeline
+on:
+  push:
+    
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: checkout code
+        
+
+      - name: build image
+        run: |
+          docker build -t ${{secrets.DOCKER_USERNAME}}/ciportfolio:${{github.run_number}}
+          docker build -t ${{secrets.DOCKER_USERNAME}}/ciportfolio .
+          
+      - name: Docker login
+        uses: docker/login-action@v4
+        with:
+          username: ${{secrets.DOCKER_USERNAME}}
+          password: ${{secrets.DOCKER_PASSWORD}}
+      - name: push image to registry
+        run: |
+          docker push ${{secrets.DOCKER_USERNAME}}/ciportfolio:${{github.run_number}}
+          docker push ${{secrets.DOCKER_USERNAME}}/ciportfolio
+deploy:
+  runs-on: ubuntu-latest
+  needs: build
+  steps:
+    - name: ssh to linux and run containers
+      uses: appleboy/ssh-action@v1
+      with:
+        host: ${{secrets.hOST}}
+        username: ${{secrets.SSH_USERNAME}}
+        key: ${{secrets.PRIVATE_KEY}}
+       script: |
+          docker rm -f portfolio || echo "Container not found, skipping removal"
+          docker rmi ${{secrets.DOCKER_USERNAME}}/ciportfolio || echo "Image does not exist, skipping removal"
+          docker run -d --name portfolio -p 8080:80 ${{secrets.DOCKER_USERNAME}}/ciportfolio:${{github.run_number}}
+      uses: docker/login-action@v4
+      with:
+        username: ${{secrets.DOCKER_USERNAME}}
+        password: ${{secrets.DOCKER_PASSWORD}}
+    - name: pull image from registry
+      run: |
+        docker pull ${{secrets.DOCKER_USERNAME}}/ciportfolio:${{github.run_number}}
+        docker pull ${{secrets.DOCKER_USERNAME}}/ciportfolio
+    - name: deploy to server
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{secrets.SERVER_USER}}@${{secrets.SERVER_IP}} << 'EOF'
+          docker stop ciportfolio || true
+          docker rm ciportfolio || true
+          docker run -d --name ciportfolio -p 80:80 ${{secrets.DOCKER_USERNAME}}/ciportfolio:${{github.run_number}}
+        EOF
